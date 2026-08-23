@@ -4,8 +4,7 @@ import java.util.*;
 public class RecipeFinder {
 
     // ============================================================
-    // STRING / PATTERN MATCHING
-    // Algorithm: Naive Pattern Matching
+    // 1. NAIVE PATTERN MATCHING
     // ============================================================
 
     public static boolean naivePatternMatch(String text, String pattern) {
@@ -16,20 +15,15 @@ public class RecipeFinder {
         int n = text.length();
         int m = pattern.length();
 
-        // Empty pattern
         if (m == 0) {
             return true;
         }
 
-        // Pattern is longer than text
         if (m > n) {
             return false;
         }
 
-        // ========================================================
-        // NAIVE PATTERN MATCHING
-        // ========================================================
-
+        // Naive Pattern Matching
         for (int i = 0; i <= n - m; i++) {
 
             int j = 0;
@@ -48,8 +42,9 @@ public class RecipeFinder {
         return false;
     }
 
+
     // ============================================================
-    // CHECK WHETHER A LINE IS A RECIPE HEADER
+    // 2. CHECK RECIPE HEADER
     // ============================================================
 
     public static boolean isRecipeHeader(String line) {
@@ -58,11 +53,14 @@ public class RecipeFinder {
             return false;
         }
 
-        return line.trim().toLowerCase().startsWith("recipe:");
+        return line.trim()
+                .toLowerCase()
+                .startsWith("recipe:");
     }
 
+
     // ============================================================
-    // GET RECIPE NAME SAFELY
+    // 3. GET RECIPE NAME
     // ============================================================
 
     public static String getRecipeName(String firstLine) {
@@ -73,26 +71,23 @@ public class RecipeFinder {
 
         firstLine = firstLine.trim();
 
-        // Safety check
         if (!firstLine.toLowerCase().startsWith("recipe:")) {
             return "";
         }
 
-        // Remove "Recipe:"
-        String recipeName = firstLine.substring(7).trim();
-
-        return recipeName;
+        return firstLine.substring(7).trim();
     }
 
+
     // ============================================================
-    // DISPLAY RECIPE
+    // 4. DISPLAY COMPLETE RECIPE
     // ============================================================
 
     public static void displayRecipe(String recipeText) {
 
         System.out.println();
         System.out.println("======================================");
-        System.out.println("           RECIPE FOUND");
+        System.out.println("             RECIPE FOUND");
         System.out.println("======================================");
         System.out.println();
 
@@ -102,69 +97,147 @@ public class RecipeFinder {
         System.out.println();
     }
 
+
     // ============================================================
-    // RECIPE SEARCH
+    // 5. LEVENSHTEIN EDIT DISTANCE
+    // Used for Fuzzy Search
     // ============================================================
 
-    public static void searchRecipe(String fileName, String searchName) {
+    public static int levenshteinDistance(String a, String b) {
 
-        boolean found = false;
+        a = a.toLowerCase();
+        b = b.toLowerCase();
 
-        try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+        int n = a.length();
+        int m = b.length();
 
-            StringBuilder recipe = new StringBuilder();
+        int[][] dp = new int[n + 1][m + 1];
+
+        // Initialize first column
+        for (int i = 0; i <= n; i++) {
+            dp[i][0] = i;
+        }
+
+        // Initialize first row
+        for (int j = 0; j <= m; j++) {
+            dp[0][j] = j;
+        }
+
+        // Fill DP table
+        for (int i = 1; i <= n; i++) {
+
+            for (int j = 1; j <= m; j++) {
+
+                if (a.charAt(i - 1) == b.charAt(j - 1)) {
+
+                    dp[i][j] = dp[i - 1][j - 1];
+
+                } else {
+
+                    dp[i][j] = 1 + Math.min(
+                            dp[i - 1][j],
+                            Math.min(
+                                    dp[i][j - 1],
+                                    dp[i - 1][j - 1]
+                            )
+                    );
+                }
+            }
+        }
+
+        return dp[n][m];
+    }
+
+
+    // ============================================================
+    // 6. SIMILARITY PERCENTAGE
+    // Used by Fuzzy Search
+    // ============================================================
+
+    public static double similarity(String a, String b) {
+
+        int distance = levenshteinDistance(a, b);
+
+        int maxLength =
+                Math.max(a.length(), b.length());
+
+        if (maxLength == 0) {
+            return 100.0;
+        }
+
+        return (1.0 -
+                (double) distance / maxLength) * 100;
+    }
+
+
+    // ============================================================
+    // 7. FUZZY SEARCH
+    // ============================================================
+
+    public static void fuzzySearchRecipe(
+            String fileName,
+            String searchName) {
+
+        String bestRecipe = "";
+        String bestRecipeName = "";
+        double bestScore = 0;
+
+        try (BufferedReader br =
+                     new BufferedReader(
+                             new FileReader(fileName))) {
+
+            StringBuilder recipe =
+                    new StringBuilder();
 
             String line;
 
-            // ====================================================
-            // READ FILE LINE BY LINE
-            // ====================================================
-
+            // Read file line by line
             while ((line = br.readLine()) != null) {
 
-                // Remove BOM if it exists at the beginning
-                if (line.length() > 0 && line.charAt(0) == '\uFEFF') {
+                // Remove BOM if present
+                if (line.length() > 0 &&
+                        line.charAt(0) == '\uFEFF') {
+
                     line = line.substring(1);
                 }
 
-                // =================================================
-                // NEW RECIPE FOUND
-                // =================================================
-
+                // New recipe found
                 if (isRecipeHeader(line)) {
 
-                    // ---------------------------------------------
-                    // CHECK PREVIOUS RECIPE
-                    // ---------------------------------------------
-
+                    // Process previous recipe
                     if (recipe.length() > 0) {
 
-                        String recipeText = recipe.toString().trim();
+                        String recipeText =
+                                recipe.toString().trim();
 
                         if (!recipeText.isEmpty()) {
 
-                            String[] lines = recipeText.split("\\R");
+                            String[] lines =
+                                    recipeText.split("\\R");
 
                             if (lines.length > 0) {
 
-                                String firstLine = lines[0].trim();
+                                String recipeName =
+                                        getRecipeName(
+                                                lines[0].trim()
+                                        );
 
-                                String recipeName = getRecipeName(firstLine);
+                                if (!recipeName.isEmpty()) {
 
-                                // -----------------------------
-                                // SEARCH RECIPE NAME
-                                // -----------------------------
+                                    double score =
+                                            similarity(
+                                                    recipeName,
+                                                    searchName
+                                            );
 
-                                if (!recipeName.isEmpty() &&
-                                        naivePatternMatch(
-                                                recipeName,
-                                                searchName)) {
+                                    if (score > bestScore) {
 
-                                    displayRecipe(recipeText);
-
-                                    found = true;
-
-                                    return;
+                                        bestScore = score;
+                                        bestRecipe =
+                                                recipeText;
+                                        bestRecipeName =
+                                                recipeName;
+                                    }
                                 }
                             }
                         }
@@ -174,54 +247,86 @@ public class RecipeFinder {
                     }
                 }
 
-                // =================================================
-                // ADD CURRENT LINE TO RECIPE
-                // =================================================
-
-                recipe.append(line).append(System.lineSeparator());
+                // Add current line
+                recipe.append(line)
+                        .append(System.lineSeparator());
             }
+
 
             // ====================================================
             // CHECK LAST RECIPE
             // ====================================================
 
-            if (!found && recipe.length() > 0) {
+            if (recipe.length() > 0) {
 
-                String recipeText = recipe.toString().trim();
+                String recipeText =
+                        recipe.toString().trim();
 
                 if (!recipeText.isEmpty()) {
 
-                    String[] lines = recipeText.split("\\R");
+                    String[] lines =
+                            recipeText.split("\\R");
 
                     if (lines.length > 0) {
 
-                        String firstLine = lines[0].trim();
+                        String recipeName =
+                                getRecipeName(
+                                        lines[0].trim()
+                                );
 
-                        String recipeName = getRecipeName(firstLine);
+                        if (!recipeName.isEmpty()) {
 
-                        if (!recipeName.isEmpty() &&
-                                naivePatternMatch(
-                                        recipeName,
-                                        searchName)) {
+                            double score =
+                                    similarity(
+                                            recipeName,
+                                            searchName
+                                    );
 
-                            displayRecipe(recipeText);
+                            if (score > bestScore) {
 
-                            found = true;
+                                bestScore = score;
+                                bestRecipe =
+                                        recipeText;
+                                bestRecipeName =
+                                        recipeName;
+                            }
                         }
                     }
                 }
             }
 
+
             // ====================================================
-            // RECIPE NOT FOUND
+            // DISPLAY FUZZY RESULT
             // ====================================================
 
-            if (!found) {
+            if (bestScore >= 70) {
+
+                System.out.println();
+                System.out.println("======================================");
+                System.out.println("          FUZZY MATCH FOUND");
+                System.out.println("======================================");
+                System.out.println();
+
+                System.out.println(
+                        "Closest Recipe: "
+                                + bestRecipeName
+                );
+
+                System.out.printf(
+                        "Similarity: %.2f%%%n",
+                        bestScore
+                );
+
+                System.out.println();
+
+                // Display complete recipe
+                displayRecipe(bestRecipe);
+
+            } else {
 
                 System.out.println();
                 System.out.println("Recipe not found.");
-                System.out.println(
-                        "Please enter a valid recipe name.");
                 System.out.println();
             }
 
@@ -229,78 +334,278 @@ public class RecipeFinder {
 
             System.out.println();
             System.out.println(
-                    "Error: recipes.txt file not found.");
+                    "Error: recipes.txt file not found."
+            );
 
             System.out.println(
-                    "Make sure recipes.txt is inside the data folder.");
+                    "Make sure recipes.txt is inside the data folder."
+            );
 
         } catch (IOException e) {
 
             System.out.println();
             System.out.println(
-                    "Error while reading the recipe file.");
-
-            System.out.println(
-                    "Please check your recipes.txt file.");
+                    "Error while reading the recipe file."
+            );
         }
     }
 
+
     // ============================================================
-    // MAIN METHOD
+    // 8. PATTERN MATCHING RECIPE SEARCH
+    // ============================================================
+
+    public static void searchRecipe(
+            String fileName,
+            String searchName) {
+
+        boolean found = false;
+
+        try (BufferedReader br =
+                     new BufferedReader(
+                             new FileReader(fileName))) {
+
+            StringBuilder recipe =
+                    new StringBuilder();
+
+            String line;
+
+            // Read file line by line
+            while ((line = br.readLine()) != null) {
+
+                // Remove BOM if present
+                if (line.length() > 0 &&
+                        line.charAt(0) == '\uFEFF') {
+
+                    line = line.substring(1);
+                }
+
+                // New recipe found
+                if (isRecipeHeader(line)) {
+
+                    // Check previous recipe
+                    if (recipe.length() > 0) {
+
+                        String recipeText =
+                                recipe.toString().trim();
+
+                        if (!recipeText.isEmpty()) {
+
+                            String[] lines =
+                                    recipeText.split("\\R");
+
+                            if (lines.length > 0) {
+
+                                String recipeName =
+                                        getRecipeName(
+                                                lines[0].trim()
+                                        );
+
+                                // Naive Pattern Matching
+                                if (!recipeName.isEmpty() &&
+                                        naivePatternMatch(
+                                                recipeName,
+                                                searchName)) {
+
+                                    displayRecipe(
+                                            recipeText
+                                    );
+
+                                    found = true;
+
+                                    return;
+                                }
+                            }
+                        }
+
+                        recipe.setLength(0);
+                    }
+                }
+
+                // Add current line
+                recipe.append(line)
+                        .append(System.lineSeparator());
+            }
+
+
+            // ====================================================
+            // CHECK LAST RECIPE
+            // ====================================================
+
+            if (!found && recipe.length() > 0) {
+
+                String recipeText =
+                        recipe.toString().trim();
+
+                if (!recipeText.isEmpty()) {
+
+                    String[] lines =
+                            recipeText.split("\\R");
+
+                    if (lines.length > 0) {
+
+                        String recipeName =
+                                getRecipeName(
+                                        lines[0].trim()
+                                );
+
+                        if (!recipeName.isEmpty() &&
+                                naivePatternMatch(
+                                        recipeName,
+                                        searchName)) {
+
+                            displayRecipe(
+                                    recipeText
+                            );
+
+                            found = true;
+                        }
+                    }
+                }
+            }
+
+
+            // Recipe not found
+            if (!found) {
+
+                System.out.println();
+                System.out.println(
+                        "Recipe not found."
+                );
+
+                System.out.println(
+                        "Please enter a valid recipe name."
+                );
+
+                System.out.println();
+            }
+
+        } catch (FileNotFoundException e) {
+
+            System.out.println();
+            System.out.println(
+                    "Error: recipes.txt file not found."
+            );
+
+            System.out.println(
+                    "Make sure recipes.txt is inside the data folder."
+            );
+
+        } catch (IOException e) {
+
+            System.out.println();
+            System.out.println(
+                    "Error while reading the recipe file."
+            );
+        }
+    }
+
+
+    // ============================================================
+    // 9. MAIN METHOD
     // ============================================================
 
     public static void main(String[] args) {
 
         Scanner sc = new Scanner(System.in);
 
-        // ========================================================
-        // FILE LOCATION
-        // ========================================================
+        // File location
+        String fileName =
+                "data" + File.separator + "recipes.txt";
 
-        String fileName = "data" + File.separator + "recipes.txt";
 
-        // ========================================================
-        // APPLICATION TITLE
-        // ========================================================
+        // Application title
+        System.out.println();
+        System.out.println("======================================");
+        System.out.println("             RECIPE FINDER");
+        System.out.println("======================================");
+        System.out.println();
 
-        System.out.println(
-                "======================================");
 
-        System.out.println(
-                "             RECIPE FINDER");
-
-        System.out.println(
-                "======================================");
+        // Menu
+        System.out.println("1. Pattern Matching");
+        System.out.println("2. Fuzzy Search");
+        System.out.println("3. Exit");
 
         System.out.println();
 
-        // ========================================================
-        // USER INPUT
-        // ========================================================
+        System.out.print("Enter your choice: ");
 
-        System.out.print("Enter recipe name: ");
+        String choice =
+                sc.nextLine().trim();
 
-        String searchName = sc.nextLine().trim();
 
         // ========================================================
-        // INPUT VALIDATION
+        // PATTERN MATCHING
         // ========================================================
 
-        if (searchName.isEmpty()) {
+        if (choice.equals("1")) {
 
-            System.out.println();
+            System.out.print(
+                    "Enter recipe name: "
+            );
+
+            String searchName =
+                    sc.nextLine().trim();
+
+            if (searchName.isEmpty()) {
+
+                System.out.println(
+                        "Please enter a recipe name."
+                );
+
+            } else {
+
+                searchRecipe(
+                        fileName,
+                        searchName
+                );
+            }
+
+
+        // ========================================================
+        // FUZZY SEARCH
+        // ========================================================
+
+        } else if (choice.equals("2")) {
+
+            System.out.print(
+                    "Enter recipe name: "
+            );
+
+            String searchName =
+                    sc.nextLine().trim();
+
+            if (searchName.isEmpty()) {
+
+                System.out.println(
+                        "Please enter a recipe name."
+                );
+
+            } else {
+
+                fuzzySearchRecipe(
+                        fileName,
+                        searchName
+                );
+            }
+
+
+        // ========================================================
+        // EXIT
+        // ========================================================
+
+        } else if (choice.equals("3")) {
+
             System.out.println(
-                    "Please enter a recipe name.");
+                    "Thank you for using Recipe Finder."
+            );
 
         } else {
 
-            // ====================================================
-            // SEARCH RECIPE
-            // ====================================================
-
-            searchRecipe(
-                    fileName,
-                    searchName);
+            System.out.println(
+                    "Invalid choice."
+            );
         }
 
         sc.close();
