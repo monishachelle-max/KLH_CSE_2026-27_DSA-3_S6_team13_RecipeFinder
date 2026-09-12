@@ -1,4 +1,4 @@
-# Recipe Finder Using String Matching
+# Recipe Finder Using String Matching and Similarity Algorithms
 
 ## Team Members
 
