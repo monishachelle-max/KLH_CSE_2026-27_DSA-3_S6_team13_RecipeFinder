@@ -2,7 +2,7 @@
 
 ## Project Title
 
-# Recipe Finder Using String Matching and Similarity Algorithms
+# Recipe Finder 
 
 ---
 
